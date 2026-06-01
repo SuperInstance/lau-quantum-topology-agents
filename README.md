@@ -1,420 +1,341 @@
 # lau-quantum-topology-agents
 
-**Topological Quantum Field Theory (TQFT) for agent systems** — Frobenius algebras, cobordisms, anyons, knot invariants, and topologically protected communication, all mapped to agent interaction semantics.
+**Topological Quantum Field Theory (TQFT) applied to agent systems — Frobenius algebras, cobordisms, anyons, knot invariants, and topologically protected communication.**
 
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-142-green.svg)](#testing)
+
+142 tests · 2,838 lines of Rust · 9 modules
 
 ---
 
-## Why TQFT for Agents?
+## What This Does
 
-A TQFT is a rule that assigns vector spaces to boundaries and linear maps to the manifolds connecting them. Translated to agent systems:
+This crate implements the mathematical framework of **Topological Quantum Field Theory** (TQFT) and applies it to multi-agent systems. In TQFT:
 
-- Each agent's interface is a **vector space** (its possible states)
-- An interaction history between agents is a **cobordism** (manifold connecting boundaries)
-- The **partition function** Z(M) computes amplitudes — the weight of each interaction history
-- **Anyons** model interactions where order matters (swapping A then B ≠ B then A)
-- **Topological protection** makes agent communication robust to local noise
-- **Knot invariants** (Jones polynomial) classify the topology of interaction patterns
+- **Boundaries** (agent interfaces) are assigned **vector spaces**
+- **Cobordisms** (manifold-shaped interactions) are assigned **linear maps**
+- **The partition function** Z(M) computes amplitudes over agent histories
+- **Topological invariants** (Jones polynomial, anyon braiding) capture properties that survive any continuous deformation
 
-This crate implements these structures from the ground up, with full axiom verification and agent-oriented APIs.
+This gives you:
+- **Frobenius algebras** — the algebraic heart of 2D TQFT, with multiplication, comultiplication, and the Frobenius condition
+- **Cobordism category** — compose agent interactions as manifold gluings with functorial verification
+- **Ising anyons** — non-abelian braiding statistics where swapping agents A↔B ≠ swapping B↔A
+- **Jones polynomial** — knot invariants computed from agent interaction patterns via the Kauffman bracket
+- **Partition function** — weighted sums over agent histories with temperature control
+- **Surgery** — Dehn twists, S-matrices, and cutting/gluging for mapping class group operations
+- **Topological protection** — agent states encoded in topological degrees of freedom, robust to local perturbations
+
+---
+
+## Key Idea
+
+The central analogy:
+
+| TQFT Concept | Agent Counterpart |
+|---|---|
+| (d−1)-manifold Σ | Agent boundary / interface |
+| Vector space Z(Σ) | Agent state space |
+| Cobordism M: Σ₁ → Σ₂ | Interaction history connecting two agent states |
+| Linear map Z(M) | State transition operator |
+| Partition function Z(M) | Amplitude / weight of interaction history |
+| Frobenius algebra A | Internal structure of agent operations |
+| Anyon braiding | Non-commutative agent interactions |
+| Jones polynomial | Topological invariant of interaction pattern |
+| Surgery | Restructuring agent interaction topology |
+| Topological protection | Error-robust agent state encoding |
+
+The TQFT functor Z: **Cob** → **Vect** is a symmetric monoidal functor. For agents, this means:
+- Composition of interactions = composition of linear maps
+- Parallel agents = tensor product of state spaces
+- No interaction = identity map
+- Closed manifold = scalar (amplitude)
+
+---
+
+## Install
+
+```toml
+[dependencies]
+lau-quantum-topology-agents = "0.1"
+```
+
+Requires Rust 2021 edition. Dependencies: `nalgebra` (with serde), `serde`, `serde_json`.
 
 ---
 
 ## Quick Start
 
-```toml
-# Cargo.toml
-[dependencies]
-lau-quantum-topology-agents = "0.1"
-```
-
 ```rust
 use lau_quantum_topology_agents::*;
 
-// Start with the Z/2Z TQFT
-let tqft = TQFT::z2();
+// 1. Create a TQFT from a Frobenius algebra
+let tqft = TQFT::z2(); // The Z/2Z TQFT
 
-// Verify all axioms hold
-let report = tqft.verify_axioms(1e-10);
-assert!(report.all_pass());
-
-// Create agents
-let mut agent_a = AgentBoundary::new("alice", 2);
-let mut agent_b = AgentBoundary::new("bob", 2);
+// 2. Define agent boundaries
+let mut agent_a = AgentBoundary::new("agent-a", 2);
+let mut agent_b = AgentBoundary::new("agent-b", 2);
 agent_a.connect_to(&mut agent_b);
 
-// Compute interaction amplitude via Frobenius multiplication
+// 3. The TQFT assigns vector spaces to boundaries
+let dim = tqft.assign_vector_space(&agent_a);
+// dim = agent.state_dimension × algebra.dimension = 2 × 2 = 4
+
+// 4. Compose cobordisms (interactions)
+let cob1 = Cobordism::identity(vec![
+    BoundaryComponent { label: "a".into(), dimension: 2, orientation: Orientation::Ingoing },
+]);
+let cob2 = cob1.clone();
+let composed = cob1.compose(&cob2)?; // Z(M₂ ∘ M₁) = Z(M₂) · Z(M₁)
+
+// 5. Compute partition function (amplitude)
+let pf = PartitionFunction::new(FrobeniusAlgebra::z2()).with_temperature(0.5);
+let amplitude = pf.compute(&composed);
+
+// 6. Compute Jones polynomial of an interaction braid
+let mut jones = JonesPolynomial::new();
+let mut braid = BraidWord::new(3);
+braid.sigma(0);      // σ₁
+braid.sigma(1);       // σ₂
+braid.sigma_inv(0);   // σ₁⁻¹
+let poly = jones.evaluate_braid(&braid);
+
+// 7. Anyon braiding (Ising model)
+let anyons = AnyonSystem::ising();
+let fusion = anyons.fuse("σ", "σ"); // → ["1", "ψ"]
+let braid_matrix = anyons.braid("σ", "σ"); // R-matrix
+
+// 8. Topological protection
+let protection = TopologicalProtection::new(anyons, 3);
+let logical = DVector::from_vec(vec![1.0, 0.0]);
+let encoded = protection.encode(&logical);
+let is_valid = protection.verify(&encoded);
+```
+
+---
+
+## API Reference
+
+### `FrobeniusAlgebra`
+The algebraic structure underlying 2D TQFT. Contains multiplication μ, unit η, comultiplication Δ, and counit ε satisfying the Frobenius condition.
+
+```rust
 let alg = FrobeniusAlgebra::z2();
-let network = AgentNetwork::new(2);
-let result = alg.multiply(&agent_a.state_vector(), &agent_b.state_vector());
-
-// Compute Jones polynomial for an interaction braid
-let mut braid = JonesPolynomial::new();
-let mut trefoil = BraidWord::new(2);
-trefoil.sigma(0);
-trefoil.sigma(0);
-trefoil.sigma(0);
-let jones_val = braid.evaluate_braid(&trefoil);
+let product = alg.multiply(&a, &b);      // μ: A⊗A → A
+let unit = alg.unit(1.0);                // η: ℝ → A
+let comult = alg.comultiply(&x);         // Δ: A → A⊗A
+let frobenius_ok = alg.verify_frobenius_condition(1e-10);
+let frob_matrix = alg.frobenius_matrix(); // β_ij = ε(μ(e_i, e_j))
 ```
 
----
+Pre-built algebras: `trivial()` (1D), `z2()` (ℤ/2ℤ group algebra).
 
-## Architecture
-
-### Module Map
-
-```
-┌─────────────────────────────────────────────────┐
-│  TQFT (top-level functor)                       │
-│  ┌──────────────┐  ┌──────────────┐             │
-│  │ FrobeniusAlg  │  │ Cobordism    │             │
-│  │ (algebraic    │  │ (geometric   │             │
-│  │  structure)   │  │  structure)  │             │
-│  └──────────────┘  └──────────────┘             │
-│  ┌──────────────┐  ┌──────────────┐             │
-│  │ AgentBoundry  │  │ PartitionFn  │             │
-│  │ (agent state  │  │ (amplitudes  │             │
-│  │  spaces)      │  │  & weights)  │             │
-│  └──────────────┘  └──────────────┘             │
-│  ┌──────────────┐  ┌──────────────┐             │
-│  │ Surgery       │  │ JonesPoly    │             │
-│  │ (S-matrix,    │  │ (knot        │             │
-│  │  Dehn twists)  │  │  invariants) │             │
-│  └──────────────┘  └──────────────┘             │
-│  ┌──────────────┐  ┌──────────────┐             │
-│  │ AnyonSystem   │  │ TopoProtect  │             │
-│  │ (braiding,    │  │ (error       │             │
-│  │  fusion)      │  │  correction) │             │
-│  └──────────────┘  └──────────────┘             │
-└─────────────────────────────────────────────────┘
-```
-
----
-
-## Modules in Detail
-
-### Frobenius Algebra (`frobenius`)
-
-The algebraic heart of 2D TQFT. A commutative Frobenius algebra over ℝ with four operations:
-
-| Operation | Symbol | Map | Meaning |
-|---|---|---|---|
-| Multiplication | μ | A ⊗ A → A | Agent state combination |
-| Unit | η | ℝ → A | Default agent state |
-| Comultiplication | Δ | A → A ⊗ A | State splitting |
-| Counit | ε | A → ℝ | State evaluation |
+### `Cobordism`
+A manifold connecting boundaries, represented as a linear map.
 
 ```rust
-let alg = FrobeniusAlgebra::z2(); // ℤ/2ℤ group algebra
-let e0 = DVector::from_vec(vec![1.0, 0.0]);
-let e1 = DVector::from_vec(vec![0.0, 1.0]);
-
-// e1 * e1 = e0 (self-inverse)
-let result = alg.multiply(&e1, &e1);
-assert!((&result - &e0).norm() < 1e-10);
-
-// Verify all axioms
-assert!(alg.is_valid_tqft_algebra(1e-10));
+let cob = Cobordism::new(incoming, outgoing, genus, linear_map);
+let identity = Cobordism::identity(boundaries);  // Cylinder Σ × [0,1]
+let pair = Cobordism::pair(dim);                  // Cap: ∅ → Σ ⊔ Σ
+let copair = Cobordism::copair(dim);              // Cup: Σ ⊔ Σ → ∅
+let composed = cob1.compose(&cob2)?;             // M₂ ∘ M₁
+let tensor = cob1.tensor(&cob2);                  // M₁ ⊔ M₂
 ```
 
-**Built-in algebras:**
-- `FrobeniusAlgebra::trivial()` — 1D (ℝ with standard structure)
-- `FrobeniusAlgebra::z2()` — 2D (ℤ/2ℤ group algebra)
-
-**Axiom checks:** commutativity, associativity, unit axiom, counit axiom, Frobenius condition, Frobenius form non-degeneracy.
-
-### Cobordism (`cobordism`)
-
-Manifolds connecting agent boundaries, represented as linear maps.
+### `TQFT`
+The full TQFT functor. Orchestrates all components.
 
 ```rust
-// Identity cobordism (cylinder: no interaction)
-let id = Cobordism::identity(vec![boundary]);
-
-// Compose: sequential interaction
-let composed = cobordism_a.compose(&cobordism_b)?;
-
-// Tensor: parallel (independent) interaction
-let parallel = cobordism_a.tensor(&cobordism_b);
-
-// Evaluate on a state
-let new_state = cobordism.evaluate(&state);
+let tqft = TQFT::new(frobenius_algebra);
+let functorial = tqft.verify_functoriality(1e-10);  // Z(M₂∘M₁) = Z(M₂)·Z(M₁)
+let monoidal = tqft.verify_monoidal(1e-10);          // Z(M₁⊔M₂) = Z(M₁)⊗Z(M₂)
 ```
 
-**Operations:**
-- `compose()` — sequential composition (matrix multiplication)
-- `tensor()` — disjoint union (block diagonal)
-- `euler_characteristic()` — χ = 2 - 2g - b
-- `is_isomorphism()` — invertibility check
-
-### Agent Boundaries (`agent`)
-
-Vector spaces assigned to agent interfaces, with connection topology.
+### `AnyonSystem`
+Non-abelian anyon model (Ising). Supports fusion rules, braiding, and F-matrix recoupling.
 
 ```rust
-let mut alice = AgentBoundary::new("alice", 2);
-let mut bob = AgentBoundary::new("bob", 2);
-alice.connect_to(&mut bob);
-
-// Networks of agents
-let mut net = AgentNetwork::new(2);
-net.add_agent(alice);
-net.add_agent(bob);
-let joint = net.joint_state(); // tensor product of all states
-let interaction = net.interact("alice", "bob", &alg); // Frobenius multiply
+let anyons = AnyonSystem::ising();
+let fusion_outputs = anyons.fuse("σ", "σ");  // ["1", "ψ"]
+let braid_R = anyons.braid("σ", "ψ");        // R-matrix
+let total_dim = anyons.total_quantum_dimension(); // √2 for Ising
 ```
 
-**`AgentNetwork`** supports:
-- Agent addition and lookup by ID
-- Joint state computation (tensor product)
-- Pairwise interaction via Frobenius multiplication
-- Total dimension computation
+Fusion rules: 1×1→1, 1×ψ→ψ, 1×σ→σ, ψ×ψ→1, ψ×σ→σ, σ×σ→1+ψ.
 
-### Partition Function (`amplitude`)
-
-Computes amplitudes for interaction histories — the weighted sum over agent trajectories.
-
-```rust
-let pf = PartitionFunction::new(alg).with_temperature(0.5);
-
-// Amplitude for specific input/output states
-let amp = pf.amplitude(&cobordism, &input_state, &output_state);
-
-// Partition function Z(M)
-let z = pf.compute(&cobordism);
-
-// Closed surface amplitude Z(Σ_g)
-let z_sphere = pf.closed_surface_amplitude(0); // genus 0
-
-// Probability distribution over agent states
-let probs = pf.state_probabilities(&cobordism, &basis_states);
-
-// Expectation value of an observable
-let exp = pf.expectation(&cobordism, &basis_states, |state| state[0]);
-```
-
-### Surgery (`surgery`)
-
-Cutting and gluing operations — the TQFT analog of modifying interaction topology.
-
-```rust
-let surgery = Surgery::new(algebra);
-
-// S-matrix (modular transformation)
-let s = surgery.s_matrix();
-
-// Dehn twist (mapping class group generator)
-let twist = surgery.dehn_twist(1);
-
-// Cut a cobordism along a submanifold
-let (left, right) = surgery.cut(&cobordism, split_dim);
-
-// Glue back together
-let glued = surgery.glue(&left, &right)?;
-
-// Modular S-transformation (space ↔ time exchange)
-let s_transform = surgery.modular_s_transform();
-
-// Verify braid relation STS = TST
-assert!(surgery.verify_braid_relation(1e-6));
-```
-
-### Jones Polynomial (`jones`)
-
-Knot invariants computed via the Kauffman bracket and Burau representation.
+### `JonesPolynomial`
+Knot invariant computed via the Kauffman bracket.
 
 ```rust
 let jones = JonesPolynomial::new();
+let unlink = jones.bracket_unlink(2);     // (-A² - A⁻²)²
+let trefoil = jones.trefoil();             // V(t) for trefoil knot
 
-// Define a braid (trefoil knot)
-let mut braid = BraidWord::new(2);
-braid.sigma(0); // positive crossing
-braid.sigma(0);
-braid.sigma(0);
-
-// Evaluate the Jones polynomial
-let value = jones.evaluate_braid(&braid);
-
-// Compute writhe (sum of crossing signs)
-let w = jones.writhe(&braid); // = 3
-
-// Check if two braids are topologically equivalent
-let equiv = jones.are_equivalent(&braid1, &braid2, 1e-6);
-
-// Knot determinant |V(-1)|
-let det = jones.knot_determinant(&braid);
+let mut braid = BraidWord::new(3);
+braid.sigma(0); braid.sigma(1); braid.sigma(0);
+let eval = jones.evaluate_braid(&braid);
 ```
 
-**Key concepts:**
-- **Braid generators**: σᵢ (positive crossing), σᵢ⁻¹ (negative crossing)
-- **Writhe**: signed crossing count
-- **Kauffman bracket**: recursive relation for knot evaluation
-- **Burau representation**: matrix representation of the braid group
-
-### Anyon System (`anyon`)
-
-Non-abelian braiding statistics — interactions where swap order matters.
+### `PartitionFunction`
+Computes amplitudes for closed cobordisms and agent histories.
 
 ```rust
-let ising = AnyonSystem::ising();
-
-// Fusion: σ × σ → 1 + ψ (two possible outcomes)
-let channels = ising.fuse("σ", "σ");
-
-// Total quantum dimension
-let d = ising.total_quantum_dimension();
-
-// Braid (swap) anyons
-let braided = ising.braid(&state_matrix, 0, 1);
-
-// Non-abelian check
-assert!(ising.is_non_abelian());
+let pf = PartitionFunction::new(algebra).with_temperature(0.5);
+let z = pf.compute(&cobordism);                                   // Z(M)
+let amp = pf.amplitude(&cob, &input_state, &output_state);       // ⟨out|Z(M)|in⟩
+let surface_z = pf.closed_surface_amplitude(genus);               // Z(Σ_g)
 ```
 
-**Built-in models:**
-
-| Model | Types | Key Fusion Rule | Non-Abelian? |
-|---|---|---|---|
-| **Ising** | 1, ψ, σ | σ × σ → 1 + ψ | ✅ |
-| **Fibonacci** | 1, τ | τ × τ → 1 + τ | ✅ |
-
-**Operations:**
-- `fuse()` — compute fusion channels
-- `braid()` / `braid_inverse()` — apply R-matrix braiding
-- `topological_spins()` — θₐ = Rₐₐ for each type
-- `is_non_abelian()` — check if braiding is non-commutative
-
-### Topological Protection (`protection`)
-
-Error-resistant agent communication using topological codes.
+### `Surgery`
+Cutting and gluing operations. S-matrix and Dehn twists.
 
 ```rust
-let tp = TopologicalProtection::new(AnyonSystem::ising(), 5);
-
-// Encode a logical state
-let logical = DVector::from_vec(vec![1.0, 0.0]);
-let encoded = tp.encode(&logical);
-
-// Decode back
-let decoded = tp.decode(&encoded);
-
-// Detect and correct errors
-let errors = tp.detect_errors(&noisy_state);
-let num_corrected = tp.correct(&mut noisy_state);
-
-// Protected channel with noise
-let received = tp.protected_channel(&sender_state, &receiver_state, noise_level);
+let surgery = Surgery::new(algebra);
+let s_matrix = surgery.s_matrix();                // Modular S-matrix
+let twist = surgery.dehn_twist(genus);            // Mapping class group generator
+let (left, right) = surgery.cut(&cobordism, dim); // Cut along submanifold
+let glued = surgery.glue(&left, &right);          // Reglue
 ```
 
-**Protection levels:**
-
-| Code Distance | Level | Correctable Errors |
-|---|---|---|
-| 0 | None | 0 |
-| 1 | Level1 | 0 |
-| 3 | Level2 | 1 |
-| 5+ | Maximum | ⌊(d-1)/2⌋ |
-
-### TQFT Functor (`tqft`)
-
-The top-level object — a symmetric monoidal functor from the cobordism category to vector spaces.
+### `TopologicalProtection`
+Encodes agent states in topological degrees of freedom for error robustness.
 
 ```rust
-let tqft = TQFT::z2();
-
-// Assign vector spaces to agent boundaries
-let dim = tqft.assign_vector_space(&agent);
-
-// Assign linear maps to cobordisms
-let map = tqft.assign_linear_map(&cobordism);
-
-// Full axiom verification
-let report = tqft.verify_axioms(1e-10);
-assert!(report.all_pass());
+let tp = TopologicalProtection::new(anyons, code_distance);
+let encoded = tp.encode(&logical_state);      // Encode into protected subspace
+let valid = tp.verify(&encoded);              // Check error syndrome
+let decoded = tp.decode(&encoded);            // Recover logical state
+let level = tp.protection_level();            // None, Level1, Level2, Maximum
 ```
 
-**`TQFTAxiomReport`** checks:
-- Algebra validity (commutative Frobenius)
-- Functoriality (Z(id) = id, Z(g∘f) = Z(g)∘Z(f))
-- Monoidality (Z(Σ₁ ⊔ Σ₂) = Z(Σ₁) ⊗ Z(Σ₂))
-- Frobenius condition
-- Associativity and commutativity
+Protection levels scale with code distance: d≥1 → Level1, d≥3 → Level2, d≥5 → Maximum.
+
+### `AgentBoundary`
+An agent's interface as a vector space, with connection channels.
+
+```rust
+let mut a = AgentBoundary::new("researcher", 4);
+let mut b = AgentBoundary::new("coder", 4);
+a.connect_to(&mut b);
+a.normalize();
+let overlap = a.inner_product(&b);
+```
 
 ---
 
-## Testing
+## How It Works
 
-142 tests covering every module and axiom:
-
-```bash
-cargo test
+```
+FrobeniusAlgebra ──────────────────────────────────────┐
+    │ μ, η, Δ, ε, β                                     │
+    ▼                                                     │
+AgentBoundary ──→ Cobordism ──→ TQFT (functor)           │
+    │ Σ            │ M: Σ₁→Σ₂   │ Z                     │
+    │              │             │                        │
+    ▼              ▼             ▼                        │
+PartitionFunction  Surgery     AnyonSystem               │
+    │ Z(M)         │ S, T      │ R, F matrices           │
+    ▼              ▼             ▼                        │
+JonesPolynomial  ──→ Protection  ←───────────────────────┘
+    │ V(L)           │ encode/decode
+    ▼                ▼
+Amplitudes     Topologically protected states
 ```
 
-Test categories:
-- **Frobenius algebra axioms** — commutativity, associativity, unit/counit, Frobenius condition, non-degeneracy
-- **Cobordism operations** — composition, tensor product, evaluation, isomorphism
-- **Agent networks** — state vectors, connections, joint states, interactions
-- **Partition functions** — amplitudes, closed surfaces, probabilities, expectations
-- **Surgery** — S-matrix, Dehn twists, cutting/gluing, modular transformations
-- **Jones polynomial** — writhe, bracket, braid evaluation, knot determinant
-- **Anyon systems** — fusion rules, braiding, non-abelian detection, quantum dimensions
-- **Topological protection** — encode/decode, error detection/correction, protected channels
-- **TQFT functor** — functoriality, monoidality, full axiom verification
-- **Serialization** — round-trip tests for all types
+1. **Frobenius algebra** defines the internal algebraic structure: multiplication (combining states), comultiplication (splitting states), and the Frobenius form β.
+2. **Agent boundaries** are (d−1)-manifolds assigned vector spaces by the TQFT.
+3. **Cobordisms** are d-manifolds connecting boundaries, assigned linear maps by the TQFT functor.
+4. **TQFT** verifies functoriality (Z respects composition) and monoidality (Z respects tensor products).
+5. **Partition function** computes scalar amplitudes Z(M) for closed cobordisms.
+6. **Anyons** provide non-abelian braiding: fusing and braiding particles whose statistics depend on topology, not geometry.
+7. **Jones polynomial** computes knot invariants from braided interaction patterns via the Kauffman bracket.
+8. **Surgery** implements the mapping class group: S-matrix (modular transformation), Dehn twists, and cut/reglue.
+9. **Topological protection** encodes logical states in topological degrees of freedom, achieving error robustness that scales with code distance.
 
 ---
 
-## Mathematical Background
+## The Math
 
-### 2D TQFT (Atiyah's Axioms)
+### Frobenius Algebras and 2D TQFT
 
-A 2D TQFT is equivalent to a commutative Frobenius algebra. The correspondence:
+A **commutative Frobenius algebra** (A, μ, η, Δ, ε) consists of:
+- **Multiplication** μ: A ⊗ A → A with unit η
+- **Comultiplication** Δ: A → A ⊗ A with counit ε
+- **Frobenius condition**: (μ ⊗ id)∘(id ⊗ Δ) = Δ∘μ
 
-- **Pair of pants** (multiplication) → μ: A ⊗ A → A
-- **Cap** (unit) → η: ℝ → A
-- **Copants** (comultiplication) → Δ: A → A ⊗ A
-- **Cup** (counit) → ε: A → ℝ
+The **classification theorem** (Atiyah, Dijkgraaf): 2D TQFTs are in bijection with commutative Frobenius algebras. The TQFT functor is completely determined by the algebra structure.
 
-The Frobenius condition `β(μ(a,b), c) = β(a, μ(b,c))` (where β = ε∘μ) is the algebraic encoding of topological invariance.
+For a closed surface of genus *g*:
+```
+Z(Σ_g) = ε(μ^g(Δ^g(η(1))))
+```
+
+### Cobordism Category
+
+The **cobordism category** Cob_d has:
+- **Objects**: closed (d−1)-manifolds
+- **Morphisms**: d-dimensional cobordisms M: Σ_in → Σ_out (where ∂M = Σ_in ⊔ Σ̄_out)
+
+A **TQFT** is a symmetric monoidal functor Z: Cob_d → Vect_ℝ satisfying:
+- **Functoriality**: Z(M₂ ∘ M₁) = Z(M₂) ∘ Z(M₁)
+- **Monoidality**: Z(Σ₁ ⊔ Σ₂) = Z(Σ₁) ⊗ Z(Σ₂)
+- **Normalization**: Z(∅) = ℝ
 
 ### Anyons and Braiding
 
-In 2+1 dimensions, particle exchange can produce unitary transformations (not just ±1 phase). The **Ising anyon model** has three topological charges:
+In 2+1 dimensions, particles can have **anyonic statistics**: exchanging two particles applies a unitary R-matrix that is neither +1 (bosons) nor −1 (fermions).
 
-```
-σ × σ → 1 + ψ    (non-abelian: two fusion channels)
-σ × ψ → σ         (abelian)
-ψ × ψ → 1         (abelian, fermionic)
-```
-
-The **Fibonacci model** is the simplest non-abelian theory:
-
-```
-τ × τ → 1 + τ    (quantum dimension d = (1+√5)/2)
-```
+The **Ising anyon model** has three anyon types: {1, ψ, σ} with:
+- Quantum dimensions: d₁ = 1, d_ψ = 1, d_σ = √2
+- Total quantum dimension: D = √(1 + 1 + 2) = 2
+- Fusion: σ × σ → 1 + ψ (non-abelian: two possible outcomes)
+- Braiding: R_σσ = e^{-iπ/8} (non-trivial phase)
 
 ### Jones Polynomial
 
-The Jones polynomial V(L) is a knot invariant computable from the Kauffman bracket:
-
+The **Jones polynomial** V_L(t) is a knot invariant computed via the Kauffman bracket:
 ```
 ⟨◯⟩ = 1
-⟨L ⊔ ◯⟩ = (-A² - A⁻²)⟨L⟩
+⟨L ⊔ ◯⟩ = (-A² - A⁻²) ⟨L⟩
+⟨crossing⟩ = A ⟨0-smoothing⟩ + A⁻¹ ⟨1-smoothing⟩
 ```
 
-Each crossing splits into two smoothings, weighted by A and A⁻¹. The normalized bracket `(-A³)^{-w(L)}⟨L⟩` gives the Jones polynomial.
+The braid representation: every knot/link is the closure of a braid. The Jones polynomial is computed from the braid word using the Burau representation (or equivalently, from the TQFT applied to the braid).
+
+### Surgery and the S-Matrix
+
+**Surgery** on a 3-manifold: cut out a solid torus S¹ × D² and reglue via a diffeomorphism of the boundary torus. The **S-matrix** encodes the modular transformation of the TQFT under this operation:
+
+```
+S_ij = (1/D) Σ_k d_k · N_{ik}^j · e^{2πi s_k/c}
+```
+
+where D is the total quantum dimension, d_k are quantum dimensions, N_{ik}^j are fusion multiplicities, s_k are conformal spins, and c is the central charge.
+
+### Topological Protection
+
+Agent states encoded in the **fusion space** of anyons are topologically protected: local perturbations cannot distinguish different fusion outcomes without performing a global measurement. The **code distance** d determines how many local errors are needed to cause a logical error:
+
+- d = 1: No protection
+- d = 3: Surface code level (corrects 1 error)
+- d = 5+: Full topological protection (corrects ⌊(d−1)/2⌋ errors)
 
 ---
 
-## Dependencies
+## Module Overview
 
-| Crate | Purpose |
-|---|---|
-| `nalgebra` | Linear algebra (matrices, vectors) with serde support |
-| `serde` / `serde_json` | Serialization of all types |
+| Module | Tests | Key Types |
+|--------|-------|-----------|
+| `frobenius` | 22 | `FrobeniusAlgebra` |
+| `cobordism` | 14 | `Cobordism`, `BoundaryComponent` |
+| `tqft` | 15 | `TQFT` |
+| `anyon` | 19 | `AnyonSystem`, `AnyonType`, `FusionRule` |
+| `jones` | 18 | `JonesPolynomial`, `BraidWord` |
+| `amplitude` | 12 | `PartitionFunction` |
+| `surgery` | 10 | `Surgery` |
+| `protection` | 17 | `TopologicalProtection`, `ProtectedState` |
+| `agent` | 15 | `AgentBoundary` |
 
 ---
 
